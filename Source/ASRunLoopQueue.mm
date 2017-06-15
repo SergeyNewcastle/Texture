@@ -18,7 +18,7 @@
 #import <AsyncDisplayKit/ASAvailability.h>
 #import <AsyncDisplayKit/ASRunLoopQueue.h>
 #import <AsyncDisplayKit/ASThread.h>
-#import <AsyncDisplayKit/ASLog.h>
+#import <AsyncDisplayKit/ASSignpost.h>
 #import <QuartzCore/QuartzCore.h>
 #import <cstdlib>
 #import <deque>

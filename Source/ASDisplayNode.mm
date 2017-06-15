@@ -41,17 +41,13 @@
 #import <AsyncDisplayKit/ASLayoutElementStylePrivate.h>
 #import <AsyncDisplayKit/ASLayoutSpec.h>
 #import <AsyncDisplayKit/ASLayoutSpecPrivate.h>
+#import <AsyncDisplayKit/ASLog.h>
 #import <AsyncDisplayKit/ASRunLoopQueue.h>
+#import <AsyncDisplayKit/ASSignpost.h>
 #import <AsyncDisplayKit/ASTraitCollection.h>
 #import <AsyncDisplayKit/ASWeakProxy.h>
 #import <AsyncDisplayKit/ASResponderChainEnumerator.h>
 #import <AsyncDisplayKit/ASTipsController.h>
-
-#if ASDisplayNodeLoggingEnabled
-  #define LOG(...) NSLog(__VA_ARGS__)
-#else
-  #define LOG(...)
-#endif
 
 // Conditionally time these scopes to our debug ivars (only exist in debug/profile builds)
 #if TIME_DISPLAYNODE_OPS
@@ -452,10 +448,10 @@ static ASDisplayNodeMethodOverrides GetASDisplayNodeMethodOverrides(Class c)
   for (Ivar ivar : ivars) {
     id value = object_getIvar(self, ivar);
     if (ASClassRequiresMainThreadDeallocation(object_getClass(value))) {
-      LOG(@"Trampolining ivar '%s' value %@ for main deallocation.", ivar_getName(ivar), value);
+      as_log_debug(ASMainThreadDeallocationLog(), "%@: Trampolining ivar '%s' value %@ for main deallocation.", ASObjectDescriptionMakeTiny(self), ivar_getName(ivar), value);
       ASPerformMainThreadDeallocation(value);
     } else {
-      LOG(@"Not trampolining ivar '%s' value %@.", ivar_getName(ivar), value);
+      as_log_debug(ASMainThreadDeallocationLog(), "%@: Not trampolining ivar '%s' value %@.", ASObjectDescriptionMakeTiny(self), ivar_getName(ivar), value);
     }
   }
 }
@@ -512,16 +508,16 @@ static ASDisplayNodeMethodOverrides GetASDisplayNodeMethodOverrides(Class c)
       // If it's `id` we have to include it just in case.
       resultIvars[resultCount] = ivar;
       resultCount += 1;
-      LOG(@"Marking ivar '%s' for possible main deallocation due to type id", ivar_getName(ivar));
+      as_log_debug(ASMainThreadDeallocationLog(), "%@: Marking ivar '%s' for possible main deallocation due to type id", ASObjectDescriptionMakeTiny(self), ivar_getName(ivar));
     } else {
       // If it's an ivar with a static type, check the type.
       Class c = ASGetClassFromType(type);
       if (ASClassRequiresMainThreadDeallocation(c)) {
         resultIvars[resultCount] = ivar;
         resultCount += 1;
-        LOG(@"Marking ivar '%s' for main deallocation due to class %@", ivar_getName(ivar), c);
+        as_log_debug(ASMainThreadDeallocationLog(), "%@: Marking ivar '%s' for main deallocation due to class %@", ASObjectDescriptionMakeTiny(self), ivar_getName(ivar), c);
       } else {
-        LOG(@"Skipping ivar '%s' for main deallocation.", ivar_getName(ivar));
+        as_log_debug(ASMainThreadDeallocationLog(), "%@: Skipping ivar '%s' for main deallocation.", ASObjectDescriptionMakeTiny(self), ivar_getName(ivar));
       }
     }
   }
@@ -910,11 +906,12 @@ static ASDisplayNodeMethodOverrides GetASDisplayNodeMethodOverrides(Class c)
     loaded = [self _locked_isNodeLoaded];
     CGRect bounds = _threadSafeBounds;
     
-    if (CGRectEqualToRect(bounds, CGRectZero)) {
+    if (CGRectIsEmpty(bounds)) {
       // Performing layout on a zero-bounds view often results in frame calculations
       // with negative sizes after applying margins, which will cause
       // measureWithSizeRange: on subnodes to assert.
-      LOG(@"Warning: No size given for node before node was trying to layout itself: %@. Please provide a frame for the node.", self);
+      // This happens incredibly often, so it goes in the pedantic log.
+      as_log_error(ASPedanticLog(), "Warning: No size given for node before node was trying to layout itself: %@. Please provide a frame for the node.", self);
       return;
     }
     
@@ -967,6 +964,7 @@ static ASDisplayNodeMethodOverrides GetASDisplayNodeMethodOverrides(Class c)
     ASSignpostStart(ASSignpostCalculateLayout);
   }
 
+  as_activity_scope(as_activity_create("[ASDisplayNode calculateLayout:]", OS_ACTIVITY_CURRENT, OS_ACTIVITY_FLAG_DEFAULT));
   ASSizeRange styleAndParentSize = ASLayoutElementSizeResolve(self.style.size, parentSize);
   const ASSizeRange resolvedRange = ASSizeRangeIntersect(constrainedSize, styleAndParentSize);
   ASLayout *result = [self calculateLayoutThatFits:resolvedRange];
@@ -975,6 +973,7 @@ static ASDisplayNodeMethodOverrides GetASDisplayNodeMethodOverrides(Class c)
     pthread_setspecific(key, NULL);
     ASSignpostEnd(ASSignpostCalculateLayout);
   }
+  as_log_debug(ASLayoutLog(), "(%@, %@) -> (%@)", ASObjectDescriptionMakeTiny(self), NSStringFromASSizeRange(constrainedSize), NSStringFromCGSize(result.size));
   return result;
 }
 

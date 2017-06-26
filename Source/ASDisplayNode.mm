@@ -3168,6 +3168,9 @@ ASDISPLAYNODE_INLINE BOOL subtreeIsRasterized(ASDisplayNode *node) {
   if (self.debugName.length > 0) {
     [result addObject:@{ @"debugName" : ASStringWithQuotesIfMultiword(self.debugName) }];
   }
+  if (self.accessibilityIdentifier.length > 0) {
+    [result addObject:@{ @"axId": ASStringWithQuotesIfMultiword(self.accessibilityIdentifier) }];
+  }
   return result;
 }
 
@@ -3178,7 +3181,10 @@ ASDISPLAYNODE_INLINE BOOL subtreeIsRasterized(ASDisplayNode *node) {
   if (self.debugName.length > 0) {
     [result addObject:@{ @"debugName" : ASStringWithQuotesIfMultiword(self.debugName)}];
   }
-  
+  if (self.accessibilityIdentifier.length > 0) {
+    [result addObject:@{ @"axId": ASStringWithQuotesIfMultiword(self.accessibilityIdentifier) }];
+  }
+
   CGRect windowFrame = [self _frameInWindow];
   if (CGRectIsNull(windowFrame) == NO) {
     [result addObject:@{ @"frameInWindow" : [NSValue valueWithCGRect:windowFrame] }];

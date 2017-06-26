@@ -64,7 +64,7 @@
 ASDISPLAYNODE_EXTERN_C_BEGIN
 
 /// Global disable for all logs except APILog.
-#define ASInternalLogsDisabled 1
+#define ASInternalLogsDisabled 0
 
 /// The log for issues with API usage that are minor enough not to be assertion failures.
 #define ASAPILogEnabled 1
